@@ -24,13 +24,26 @@ class DDIM(DDPM):
     def sample(self, n_sample: int, size, device) -> torch.Tensor:
         x_i = torch.randn(n_sample, *size).to(device)  # x_T ~ N(0, 1)
 
-        for i in range(self.n_T, 1, -1):
+        for i in range(self.n_T, 0, -1):
             z = torch.randn(n_sample, *size).to(device) if i > 1 else 0
-            eps = self.eps_model(x_i, torch.tensor(i / self.n_T).to(device).repeat(n_sample, 1))
+            eps = self.eps_model(x_i, 
+                                 torch.tensor(i / self.n_T).to(device).repeat(n_sample, 1))
+            
+            # Predict x0 from xt
             x0_t = (x_i - eps * (1 - self.alphabar_t[i]).sqrt()) / self.alphabar_t[i].sqrt()
+
+            # Special case for the final step
+            if i == 1:
+                return x0_t
+
+            # Compute sigma_t (c1)
             c1 = self.eta * ((1 - self.alphabar_t[i] / self.alphabar_t[i - 1]) * (1 - self.alphabar_t[i - 1]) / (
                     1 - self.alphabar_t[i])).sqrt()
+            
+            #  Compute coefficient for predicted noise (c2)
             c2 = ((1 - self.alphabar_t[i - 1]) - c1 ** 2).sqrt()
+
+            # Update x_{t-1}
             x_i = self.alphabar_t[i - 1].sqrt() * x0_t + c1 * z + c2 * eps
 
         return x_i

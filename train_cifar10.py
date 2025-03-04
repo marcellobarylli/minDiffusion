@@ -13,17 +13,20 @@ from torchvision.utils import save_image, make_grid
 from mindiffusion.unet import NaiveUnet
 from mindiffusion.ddim import DDIM
 
+# set gpu to 2
+torch.cuda.set_device(2)
+
 
 def train_cifar10(
-    n_epoch: int = 100, device: str = "cuda:1", load_pth: Optional[str] = None
+    n_epoch: int = 100, device: str = "cuda:2", load_pth: Optional[str] = None
 ) -> None:
 
-    ddpm = DDIM(eps_model=NaiveUnet(3, 3, n_feat=128), betas=(1e-4, 0.02), eta=0.5, n_T=1000)
+    sampler = DDIM(eps_model=NaiveUnet(3, 3, n_feat=128), betas=(1e-4, 0.02), eta=0.5, n_T=1000)
 
     if load_pth is not None:
-        ddpm.load_state_dict(torch.load("ddpm_cifar.pth"))
+        sampler.load_state_dict(torch.load("sampler_cifar.pth"))
 
-    ddpm.to(device)
+    sampler.to(device)
 
     tf = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
@@ -37,18 +40,18 @@ def train_cifar10(
     )
 
     dataloader = DataLoader(dataset, batch_size=512, shuffle=True, num_workers=16)
-    optim = torch.optim.Adam(ddpm.parameters(), lr=1e-5)
+    optim = torch.optim.Adam(sampler.parameters(), lr=1e-5)
 
     for i in range(n_epoch):
         print(f"Epoch {i} : ")
-        ddpm.train()
+        sampler.train()
 
         pbar = tqdm(dataloader)
         loss_ema = None
         for x, _ in pbar:
             optim.zero_grad()
             x = x.to(device)
-            loss = ddpm(x)
+            loss = sampler(x)
             loss.backward()
             if loss_ema is None:
                 loss_ema = loss.item()
@@ -57,15 +60,15 @@ def train_cifar10(
             pbar.set_description(f"loss: {loss_ema:.4f}")
             optim.step()
 
-        ddpm.eval()
+        sampler.eval()
         with torch.no_grad():
-            xh = ddpm.sample(8, (3, 32, 32), device)
+            xh = sampler.sample(8, (3, 32, 32), device)
             xset = torch.cat([xh, x[:8]], dim=0)
             grid = make_grid(xset, normalize=True, value_range=(-1, 1), nrow=4)
-            save_image(grid, f"./contents/ddpm_sample_cifar{i}.png")
+            save_image(grid, f"./contents/sampler_sample_cifar{i}.png")
 
             # save model
-            torch.save(ddpm.state_dict(), f"./ddpm_cifar.pth")
+            torch.save(sampler.state_dict(), f"./sampler_cifar.pth")
 
 
 if __name__ == "__main__":

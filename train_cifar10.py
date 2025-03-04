@@ -11,14 +11,14 @@ from torchvision import transforms
 from torchvision.utils import save_image, make_grid
 
 from mindiffusion.unet import NaiveUnet
-from mindiffusion.ddpm import DDPM
+from mindiffusion.ddim import DDIM
 
 
 def train_cifar10(
     n_epoch: int = 100, device: str = "cuda:1", load_pth: Optional[str] = None
 ) -> None:
 
-    ddpm = DDPM(eps_model=NaiveUnet(3, 3, n_feat=128), betas=(1e-4, 0.02), n_T=1000)
+    ddpm = DDIM(eps_model=NaiveUnet(3, 3, n_feat=128), betas=(1e-4, 0.02), eta=0.5, n_T=1000)
 
     if load_pth is not None:
         ddpm.load_state_dict(torch.load("ddpm_cifar.pth"))

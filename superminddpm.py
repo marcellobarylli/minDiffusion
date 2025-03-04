@@ -19,6 +19,9 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 from torchvision.utils import save_image, make_grid
 
+# Set GPU to 2
+torch.cuda.set_device(2)
+
 
 def ddpm_schedules(beta1: float, beta2: float, T: int) -> Dict[str, torch.Tensor]:
     """
